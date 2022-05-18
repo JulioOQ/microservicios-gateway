@@ -1,0 +1,94 @@
+
+
+
+
+
+
+resilience4j:
+  circuitbreaker:
+    configs:
+      cnfCBDefault:
+        sliding-window-size: 6
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 20s
+        permitted-number-of-calls-in-half-open-state: 4
+        slow-call-rate-threshold: 50
+        slow-call-duration-threshold: 5s
+        
+    instances:
+      defaultCircuit:
+        base-config: cnfCBDefault
+        
+  timelimiter:
+    configs:
+      cnfTLDefault:
+        timeout-duration: 2s
+    instances:
+      defaultCircuit:
+        base-config: cnfTLDefault
+
+spring:
+  application:
+    name: microservicio-gateway
+    
+  cloud:
+    gateway:
+      routes:
+      
+     #primer microservicio
+        - id: jvoq-microservicio-clientes
+          uri: lb://jvoq-microservicio-clientes
+          predicates:
+            - Path=/api/clients/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: defaultCircuit
+                statusCodes: 500
+                fallbackUri: forward:http://localhost:8090/fallback            
+            - StripPrefix=2
+                        
+      #segundo microservicio   
+        - id: jvoq-microservicio-productos
+          uri: lb://jvoq-microservicio-productos
+          predicates:
+            - Path=/api/products/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: defaultCircuit
+                statusCodes: 500
+                fallbackUri: forward:http://localhost:8090/fallback            
+            - StripPrefix=2    
+                                    
+      #tercer microservicio      
+        - id: jvoq-microservicio-operaciones
+          uri: lb://jvoq-microservicio-operaciones
+          predicates:
+            - Path=/api/operations/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: defaultCircuit
+                statusCodes: 500
+                fallbackUri: forward:http://localhost:8090/fallback            
+            - StripPrefix=2
+            
+            
+  sleuth:
+    sampler:
+      probability: 1.0
+      
+  zipkin:
+    base-url: http://localhost:9411
+    
+server:
+  port: 8090
+  
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka
+      
+      
+      
